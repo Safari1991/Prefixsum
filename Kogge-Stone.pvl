@@ -1,0 +1,278 @@
+class ParallelPrefixSum 
+{
+	
+	///////////////////////////////////////////////////////////////////////////////Operations
+	requires 0 <= n;
+	requires n < |xs|;
+	static pure int get(seq<int> xs, int n) = xs[n];
+	
+	requires 0 <= p;
+	static pure int exp(int n, int p) = 0 < p ? n * exp(n, p - 1) : 1;
+	
+	requires n <= |xs|;
+	ensures n < 0 ==> |Take(xs, n)| == 0;
+	ensures 0 <= n ==> |Take(xs, n)| == n;
+	ensures (\forall int i; 0 <= i && i < n; xs[i] == get(Take(xs, n), i));
+	static pure seq<int> Take(seq<int> xs, int n) =
+		0 < n ? seq<int> { head(xs) } + Take(tail(xs), n - 1) : seq<int> { };
+	
+	ensures |xs| == 0 ==> \result == 0;
+	ensures |xs| == 1 ==> \result == head(xs);
+	static pure int intsum(seq<int> xs) =
+		0 < |xs| ? head(xs) + intsum(tail(xs)) : 0;
+	
+	requires 0 <= i && i <= |xs|;
+	ensures |\result| == |xs| - i;
+	ensures (\forall int j; 0 <= j && j < |\result|; \result[j] == intsum(Take(xs, i+j+1))); 
+	static pure seq<int> psum(seq<int> xs, int i) =
+		i < |xs| ? seq<int> { intsum(Take(xs, i + 1)) } + psum(xs, i + 1) : seq<int> { };
+	
+	// TODO use this version instead of the above `psum` (the above version is just a helper definition).
+	ensures |\result| == |xs|;
+	ensures (\forall int j; 0 <= j && j < |\result|; \result[j] == intsum(Take(xs, j+1))); 
+	static pure seq<int> psum2(seq<int> xs) = psum(xs, 0);
+	
+	requires |input| >= 0;
+	requires i >= 0;
+	requires i <= |input|;
+	requires offset > 0;
+	requires offset <= |input|*2;
+	ensures |\result| == |input| - i;
+	ensures (\forall int j; 0 <= j && j < |\result|; \result[j] == intsum(Take(input, i + j + 1)) - intsum(Take(input, i + j + 1 - offset)));
+	static pure seq<int> partial_prefixsum(seq<int> input, int i, int offset) = 	
+	i < |input| ? seq<int> {intsum(Take(input, i + 1)) - intsum(Take(input, i + 1 - offset))} + partial_prefixsum(input, i + 1, offset)	: seq<int> { };	
+	
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////Lemmas
+	
+		requires |xs| <= 1;
+		requires i >= 0;
+		requires offset > 0;
+		requires offset <= |xs|;
+		//requires i - offset < |xs|;
+		ensures i < |xs| ==> xs == partial_prefixsum(xs, i, offset*2);
+		void lemma_partial_prefixsum_base(seq<int> xs, int i, int offset) {
+		}	
+		
+		requires 0 < n;
+		ensures exp(2, n) == 2 * exp(2, n - 1);
+		void lemma_exp2_red_mult(int n) {
+		}
+	
+		requires 0 < n;
+		ensures exp(2, n) / 2 == exp(2, n - 1);
+		void lemma_exp2_red_div(int n) {
+		}
+	
+		requires 0 <= n;
+		ensures 0 < exp(2, n);
+		void lemma_exp2_positive(int n) {
+			if (0 < n) {
+				lemma_exp2_positive(n - 1);
+			}
+		}
+	
+		requires 0 <= i;
+		requires i <= j;
+		ensures exp(2, i) <= exp(2, j);
+		void lemma_exp2_leq(int i, int j) {
+			if (0 < i) {
+				lemma_exp2_leq(i - 1, j - 1);
+			} else {
+				lemma_exp2_positive(j);
+			}
+		}
+		
+		requires 0 <= i && i < |xs|;
+		ensures get(psum2(xs), i) == intsum(Take(xs, i+1));
+		void lemma_psum_get(seq<int> xs, int i) {
+			if (0 < |xs|) {
+				if (0 < i) {
+					lemma_psum_get(tail(xs), i - 1);
+				}
+			}
+		}
+	
+		ensures (\forall int i; 0 <= i && i < |xs|; get(psum2(xs), i) == intsum(Take(xs, i+1)));
+		void lemma_psum_get_all(seq<int> xs) {
+			int j = 0;
+		
+			loop_invariant 0 <= j && j <= |xs|;
+			loop_invariant (\forall int k; 0 <= k && k < j; get(psum2(xs), k) == intsum(Take(xs, k+1)));
+			while (j < |xs|) {
+				lemma_psum_get(xs, j);
+				j = j + 1;
+			}
+		}
+		
+		requires |xs| >= 0;
+		requires |ys| >= 0;
+		ensures |xs| == 0 ==> intsum(xs + ys) == intsum(ys);
+		ensures |ys| == 0 ==> intsum(xs + ys) == intsum(xs);
+		ensures |xs + ys| == |xs| + |ys|;
+		ensures intsum(tail(xs) + ys) == intsum(tail(xs)) + intsum(ys);
+		ensures intsum(xs + ys) == intsum(xs) + intsum(ys);
+		void lemma_intsum_app(seq<int> xs, seq<int> ys) {
+			if (0 < |xs|) {
+				lemma_intsum_app(tail(xs), ys);
+				assert tail(xs) + ys == tail(xs + ys);
+			}
+		}
+		
+		ensures intsum(seq<int> { }) == 0;
+		void lemma_intsum_zero() {
+		}
+		
+		ensures intsum(seq<int> { x }) == x;
+		void lemma_intsum_single(int x) {
+			assert tail(seq<int> { x }) == seq<int> { };
+			lemma_intsum_zero();
+		}
+		
+		requires 0 <= n && n < |xs|;
+		ensures Take(xs, n + 1) == Take(xs, n) + seq<int> { xs[n] };
+		void missing_lemma_2(seq<int> xs, int n) {
+			if (1 <= n) {
+				missing_lemma_2(tail(xs), n - 1);
+			}
+		}
+		
+		requires |xs| >= 0;
+		requires i >= 0;
+		requires i < |xs|;
+		ensures xs[i] == intsum(Take(xs, i + 1)) - intsum(Take(xs, i));
+		void lemma_intsum_Take(seq<int> xs, int i){
+			missing_lemma_2(xs, i);
+			assert Take(xs, i + 1) == Take(xs, i) + seq<int> {xs[i]};
+			lemma_intsum_app(Take(xs, i), seq<int> {xs[i]});
+			assert intsum( Take(xs, i) + seq<int> {xs[i]} ) == intsum(Take(xs, i)) + intsum(seq<int> {xs[i]});
+			assert intsum(Take(xs, i + 1)) == intsum(Take(xs, i)) + intsum(seq<int> {xs[i]});
+			lemma_intsum_single(xs[i]);
+			assert xs[i] == intsum(seq<int> {xs[i]});
+		}
+		
+		requires |xs| >= 0;
+		ensures (\forall int i; 0 <= i && i < |xs|; xs[i] == intsum(Take(xs, i + 1)) - intsum(Take(xs, i)));
+		void lemma_intsum_Take_all2(seq<int> xs) {
+			int j = 0;
+		
+			loop_invariant 0 <= j && j <= |xs|;
+			loop_invariant (\forall int k; 0 <= k && k < j; xs[k] == intsum(Take(xs, k + 1)) - intsum(Take(xs, k)));
+			while (j < |xs|) {
+				lemma_intsum_Take(xs, j);
+				j = j + 1;
+			}
+		}
+		
+	////////////////////////////////////////////////////////////////////////////////////////////////Main Program
+	
+	given seq<int> out;
+	//given seq<int> temp_seq;
+	context_everywhere input != null;
+	context_everywhere output != null;
+	context_everywhere input.length == output.length;
+	context_everywhere |out| == output.length;
+	//invariant |temp_seq| == output.length;
+	context (\forall* int i; 0 <= i && i < input.length; Perm(input[i], read));
+	context (\forall* int i; 0 <= i && i < output.length; Perm(output[i], read));
+	requires (\forall* int i; 0 <= i && i < output.length; output[i] == input[i]);
+	context (\forall* int i; 0 <= i && i < output.length; out[i] == input[i]);
+	//requires (\forall* int i; 0 <= i && i < output.length; temp_seq[i] == input[i]);
+	ensures (\forall int i; 0 <= i && i < output.length; output[i] == get(psum2(out), i));
+	void Kernel(int[] input, int[] output) 
+	{
+		//int offset = 1;
+		//seq<int> temp_seq = out;
+		
+		par Threads (int tid=0..output.length)
+			
+		//requires offset == 1;
+		//requires |temp_seq| == |out|;
+		context input.length == output.length;
+		context |out| == output.length;
+		//requires temp_seq == out;
+		context Perm(input[tid], read);
+		context Perm(output[tid], read); 
+		requires tid >= 1 ==> Perm(output[tid - 1], read); 
+		requires output[tid] == out[tid];
+		context input[tid] == out[tid];
+		//ensures temp_seq[tid] == get(psum2(out), tid);
+		//ensures output[tid] == temp_seq[tid];
+		ensures output[tid] == get(psum2(out), tid);
+		
+    {
+     	  int offset = 1;
+				int temp;
+				seq<int> temp_seq = out; //ghost code
+				lemma_intsum_Take(temp_seq, tid);
+				assert tid < offset ==> output[tid] == temp_seq[tid];
+							
+				loop_invariant offset >= 1;
+				loop_invariant |temp_seq| == |out|;
+				loop_invariant offset < 2 * output.length;
+				loop_invariant Perm(output[tid], read); 
+				loop_invariant tid >= offset ==> Perm(output[tid - offset], read); 
+				loop_invariant temp_seq[tid] == intsum(Take(out, tid + 1)) - intsum(Take(out, tid + 1 - offset));
+				loop_invariant tid < offset ==> temp_seq[tid] == intsum(Take(out, tid + 1));
+				loop_invariant tid < offset ==> temp_seq[tid] == get(psum2(out), tid);
+				loop_invariant temp_seq[tid] == get(partial_prefixsum(out, 0, offset), tid);
+				loop_invariant tid < offset ==> output[tid] == temp_seq[tid]; 
+				while(offset < output.length)
+				{
+					
+					temp = output[tid];
+					
+					if (tid >= offset)
+					{ 
+						temp = temp + output[tid - offset];	
+					}
+					assert tid < offset ==> temp == output[tid];
+					assert tid >= offset ==> temp == output[tid] + output[tid - offset];
+					
+					barrier(Threads) 
+					{
+						context tid >= 0 && tid < output.length;
+						context offset >= 1 && offset < output.length;
+						requires Perm(output[tid], read);
+						requires tid >= offset ==> Perm(output[tid - offset], read);
+						requires tid >= offset ==> temp == output[tid] + output[tid - offset];				
+						ensures Perm(output[tid], write);		
+					}
+					
+					if (tid >= offset)
+					{ 
+						output[tid] = temp;
+					}
+					
+					temp_seq = partial_prefixsum(out, 0, offset * 2);
+					assert temp_seq[tid] == intsum(Take(out, tid + 1)) - intsum(Take(out, tid + 1 - offset * 2));
+					assert tid < offset ==> temp_seq[tid] == intsum(Take(out, tid + 1));
+					assert tid < offset ==> temp_seq[tid] == get(psum2(out), tid);
+					assert temp_seq[tid] == get(partial_prefixsum(out, 0, offset * 2), tid);
+					assert tid < offset ==> output[tid] == temp_seq[tid];
+					
+					barrier(Threads) 
+					{
+						context tid >= 0 && tid < output.length;
+						context offset >= 1 && offset < output.length;
+						requires Perm(output[tid], write);
+						ensures Perm(output[tid], read);
+						ensures tid >= offset * 2 ==> Perm(output[tid - offset * 2], read);
+					
+					}
+					
+					offset = offset * 2;
+					
+					
+   	 	  }
+				
+				assert temp_seq[tid] == get(psum2(out), tid);
+				assert output[tid] == temp_seq[tid];
+				assert output[tid] == get(psum2(out), tid);
+				assert input[tid] == out[tid];
+				
+		}
+		
+	}
+	
+}

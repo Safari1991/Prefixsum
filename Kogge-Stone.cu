@@ -183,8 +183,8 @@ __global__ void CUDA_Kernel_Kogge_Stone(int* output, int k)
   int tid = threadIdx.x;
   //@ assert tid == \ltid;
   
-  //@ assume \pointer_index(output, tid, 1\2); 
-  //@ assume tid >= 1 ==> \pointer_index(output, tid - 1, 1\2); 
+  //@ inhale \pointer_index(output, tid, 1\2); 
+  //@ inhale tid >= 1 ==> \pointer_index(output, tid - 1, 1\2); 
   
   //@ ghost seq<int> out; 
   //@ assume |out| == exp(2, k);

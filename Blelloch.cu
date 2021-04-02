@@ -297,10 +297,10 @@ __global__ void CUDA_Kernel_Blelloch(int* output, int k)
   int tid = threadIdx.x;
   //@ assert tid == \ltid;
   
-  //@ assume (2 * tid  < ExpTwo(k)) ==> \pointer_index(output, 2 * tid, 1);
-  //@ assume (2 * tid + 1 < ExpTwo(k)) ==> \pointer_index(output, 2 * tid + 1, 1);
+  //@ inhale (2 * tid  < ExpTwo(k)) ==> \pointer_index(output, 2 * tid, 1);
+  //@ inhale (2 * tid + 1 < ExpTwo(k)) ==> \pointer_index(output, 2 * tid + 1, 1);
 
-  //@ assume (tid == 0) ==> (\forall* int i; 0 <= i && i < ExpTwo(k) && (i + 1) % 1 != 0; \pointer_index(output, i, 1));
+  //@ inhale (tid == 0) ==> (\forall* int i; 0 <= i && i < ExpTwo(k) && (i + 1) % 1 != 0; \pointer_index(output, i, 1));
   
   //@ ghost seq<int> input_seq; 
   //@ assume |input_seq| == ExpTwo(k);
